@@ -1,12 +1,12 @@
 import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, UpdateDateColumn } from "typeorm";
 
 @Entity('employees')
-export class User {
+export class Employee {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column()
-  employeeId: string;
+  // @Column()
+  // employeeId: string;
 
   @Column()
   firstName: string;
@@ -26,7 +26,7 @@ export class User {
   @Column()
   department: string;
 
-  @Column({ type: 'decimal', precision: 10, scale: 2 })
+  @Column({ nullable: true, type: 'decimal', precision: 10, scale: 2 })
   salary: number;
 
   @Column({ type: 'date' })

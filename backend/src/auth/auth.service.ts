@@ -80,6 +80,11 @@ export class AuthService {
     return user === null ? undefined : user;
   }
 
+  async findOneCustom(whereParam: object): Promise<User | undefined>{
+    const user = await this.userRepository.findOne({where: whereParam});
+    return user === null ? undefined : user;
+  }
+
   async changePassword(id: string, newPassword: string): Promise<void>{
     const user  = await this.userRepository.findOne({ where: { id } })
     if(!user){

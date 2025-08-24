@@ -47,6 +47,14 @@ export class AuthController{
   async register(
     @Body() registerDto: { username: string, password: string, email: string, role?: string },
   ) {
+    const checkUsername = await this.authService.findOneCustom({ username: registerDto.username });
+    const checkEmail = await this.authService.findOneCustom({ email: registerDto.email });
+    if(checkUsername){
+      return {
+        statusCode: HttpStatus.CONFLICT,
+        message: 'Username/Email already exists, please use another username/email'
+      }
+    }
     return this.authService.register(registerDto);
   }
 
