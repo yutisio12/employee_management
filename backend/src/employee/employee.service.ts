@@ -1,4 +1,4 @@
-import { Injectable, UnauthorizedException, Logger, BadRequestException} from '@nestjs/common';
+import { Injectable, UnauthorizedException, Logger, BadRequestException, InternalServerErrorException, NotFoundException} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Employee } from 'src/entities/employee.employee.entity';
@@ -68,8 +68,9 @@ export class EmployeeService {
     return new PaginationResponseDto(data, total, page, limit);
   }
 
-  findOne(id: number) {
-    return `This action returns a #id employee`;
+  async findOne(id: string) {
+    const datadb = await this.employeeRepository.findOne({where: {id}});
+    return datadb ?? null
   }
 
   async findOneCustom(whereParam: any) {
@@ -77,11 +78,123 @@ export class EmployeeService {
     return user === null ? undefined : user;
   }
 
-  update(id: number, updateEmployeeDto: UpdateEmployeeDto) {
-    return `This action updates a #id employee`;
+  async update(id: string, updateEmployeeDto: UpdateEmployeeDto): Promise<void> {
+    try {
+      const user = await this.employeeRepository.findOne({where: {id}});
+      if(!user){
+        throw new NotFoundException();
+      }
+      const formData = {
+        ...updateEmployeeDto,
+        phone: updateEmployeeDto.phone ? this.encryptionService.encrypt(updateEmployeeDto.phone) : '',
+        address: updateEmployeeDto.address ? this.encryptionService.encrypt(updateEmployeeDto.address) : '',
+      }
+      await this.employeeRepository.update(id, formData)
+
+    } catch (error) {
+      throw new InternalServerErrorException();
+    }
   }
 
-  remove(id: number, deleteEmployeeDto: DeleteEmployeeDto) {
-    return `This action removes a #id employee`;
+  async remove(id: string, deleteEmployeeDto: DeleteEmployeeDto) {
+    try {
+      const user = await this.employeeRepository.findOne({where: {id}});
+      if(!user){
+        throw new NotFoundException();
+      }
+      const formData = {
+        ...deleteEmployeeDto,
+        isActive: user.isActive == true ? false : true
+      }
+      await this.employeeRepository.update(id, formData)
+    } catch (error) {
+      throw new InternalServerErrorException();
+    }
   }
+
+  async uploadProfilePicture(
+    id: string,
+    file: Express.Multer.File
+  ){
+    try {
+      const main = await this.employeeRepository.findOneBy({id})
+      
+      if(!main){
+        throw new NotFoundException()
+      }
+
+      if(main.profilePicture){ // Remove Old Picture to maintain storage
+        try {
+          await this.sftpService.deleteFile(main.profilePicture)
+        } catch (error) {
+          throw new InternalServerErrorException("Can't Remove File")
+        }
+      }
+
+      const extension = file.originalname.split('.').pop()
+      const fileName = `employee_${main.id}.${extension}`
+
+      await this.sftpService.uploadFile(file.buffer, fileName)
+      await this.employeeRepository.update(id, {
+        profilePicture: fileName
+      })
+    } catch (error) {
+      if (error instanceof NotFoundException) {
+        throw error;
+      }
+      throw new BadRequestException('Failed to upload attachment: ' + error.message);
+    }
+  }
+
+  async exportExcel(department: string): Promise<Buffer>{
+    try {
+      const datadb = await this.employeeRepository.findBy({department, isActive: true})
+      const workbook = new ExcelJs.Workbook()
+      const worksheet = workbook.addWorksheet() // name of sheets
+
+      worksheet.columns = [
+        { header: 'Name', key: 'name'},
+        { header: 'Email', key: 'email'},
+        { header: 'Department', key: 'department'},
+        { header: 'Position', key: 'position'},
+        { header: 'Hired Date', key: 'hireDate'},
+      ];
+
+      datadb.forEach((value) => {
+        worksheet.addRow({
+          name: value.firstName + ' ' + value.lastName,
+          email: value.email,
+          department: value.department,
+          position: value.position,
+          hireDate: value.hireDate,
+        })
+      })
+
+      const headerRow = worksheet.getRow(1);
+      // Style font + fill (warna background)
+      headerRow.font = { bold: true };
+      headerRow.eachCell((cell) => {
+        cell.fill = {
+          type: 'pattern',
+          pattern: 'solid',
+          fgColor: { argb: 'FFE0E0E0' }, // abu-abu muda
+        };
+
+        // Kasih border di setiap cell header
+        cell.border = {
+          top: { style: 'thin' },
+          left: { style: 'thin' },
+          bottom: { style: 'thin' },
+          right: { style: 'thin' },
+        };
+
+        // Optional: rata tengah
+        cell.alignment = { vertical: 'middle', horizontal: 'center' };
+      });
+      return Buffer.from(await workbook.xlsx.writeBuffer())
+    } catch (error) {
+      throw new BadRequestException('Failed to export to Excel: ' + error.message);
+    }
+  }
+
 }

@@ -10,9 +10,9 @@ import {
   UseGuards,
   UseInterceptors,
   UploadedFile,
-  Res,
   ParseIntPipe,
   HttpStatus,
+  Res,
   ParseFilePipe,
   MaxFileSizeValidator,
   FileTypeValidator,
@@ -25,6 +25,7 @@ import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from "@nestjs/swagg
 import { FileInterceptor } from '@nestjs/platform-express';
 import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
 import { PaginationQueryDto } from 'src/pagination/pagination-query.dto';
+import type { Response } from 'express';
 
 @ApiTags('Employee')
 @Controller('employee')
@@ -49,19 +50,50 @@ export class EmployeeController {
     return this.employeeService.findAll(query);
   }
 
-  @Get('list:id')
-  findOne(@Param('id') id: string) {
-    return this.employeeService.findOne(+id);
+  @Get('export/:department')
+  async export(@Res() res: Response, @Param('department') department: string) {
+    const excel = await this.employeeService.exportExcel(department);
+    res.set({
+      'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      'Content-Disposition': `attachment; filename="employees-${new Date().toISOString().split('T')[0]}.xlsx"`,
+      'Content-Length': excel.length,
+    });
+    
+    res.end(excel);
   }
 
-  @Patch('update:id')
-  update(@Param('id') id: string, @Body() updateEmployeeDto: UpdateEmployeeDto) {
-    return this.employeeService.update(+id, updateEmployeeDto);
+  @Post('upload_profile')
+  @UseInterceptors(FileInterceptor('file'))
+  async uploadProfile(
+    @Body() body: any,
+    @UploadedFile(
+      new ParseFilePipe({
+        validators: [
+          new MaxFileSizeValidator({maxSize: 10 * 1024 * 1024}),
+          new FileTypeValidator({
+            fileType: /(jpg|jpeg|png)$/
+          })
+        ]
+      })
+    ) file: Express.Multer.File
+  ){
+    const upload = await this.employeeService.uploadProfilePicture(body.id, file) 
   }
 
-  @Delete('update:id')
-  remove(@Param('id') id: string) {
-    const deleteEmployeeDto: DeleteEmployeeDto = { isActive: false };
-    return this.employeeService.remove(+id, deleteEmployeeDto);
-  }
+  // @Get('list/:id')
+  // findOne(@Param('id') id: string) {
+  //   return this.employeeService.findOne(id);
+  // }
+
+  // @Patch('update/:id')
+  // update(@Param('id') id: string, @Body() updateEmployeeDto: UpdateEmployeeDto) {
+  //   return this.employeeService.update(id, updateEmployeeDto);
+  // }
+
+  // @Delete('update/:id')
+  // remove(@Param('id') id: string) {
+  //   const deleteEmployeeDto: DeleteEmployeeDto = { isActive: false };
+  //   return this.employeeService.remove(id, deleteEmployeeDto);
+  // }
+  
 }

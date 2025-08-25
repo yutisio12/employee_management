@@ -49,11 +49,11 @@ export class UpdateEmployeeDto {
   @ApiProperty({ example: '100000.22', required: false })
   @IsOptional()
   @IsDecimal()
-  salary: string;
+  salary: number;
   
   @ApiProperty({ example: '2024-01-15', required: false })
   @IsDateString()
-  hireDate: string;
+  hireDate: Date;
 
   @ApiProperty({ example: true, required: false })
   @IsOptional()

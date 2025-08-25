@@ -1,4 +1,4 @@
-import { Controller, Post, Body, Res, HttpStatus, UseGuards, Get, Req } from "@nestjs/common";
+import { Controller, Post, Body, Res, HttpStatus, UseGuards, Get, Req, NotFoundException } from "@nestjs/common";
 import type { Response, Request } from "express";
 import { AuthService } from "./auth.service";
 import { JwtAuthGuard } from "./jwt-auth.guard";
@@ -56,6 +56,29 @@ export class AuthController{
       }
     }
     return this.authService.register(registerDto);
+  }
+
+  @Post('logout')
+  @ApiOperation({ summary: 'User logout' })
+  @ApiResponse({ status: 200, description: 'Logout successful' })
+  async logout(@Res({passthrough: true}) response: Response){
+    response.clearCookie('access_token')
+    return { message: 'Logout Successfully' }
+  }
+
+  @Get('profile')
+  @UseGuards(JwtAuthGuard)
+  @ApiOperation({summary: 'Personal General Information'})
+  @ApiBearerAuth()
+  @ApiResponse({ status: 200, description: 'Profile retrieved successfully' })
+  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  async profile( @Req() req ){
+    const profile = await this.authService.findOneCustom({id: req.user.id})
+    if (!profile) {
+      throw new NotFoundException('User not found');
+    }
+    const {id, password, ...result } = profile
+    return result
   }
 
 }
