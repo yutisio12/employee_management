@@ -28,6 +28,7 @@ import { PaginationQueryDto } from 'src/pagination/pagination-query.dto';
 import type { Response } from 'express';
 
 @ApiTags('Employee')
+@ApiBearerAuth('access-token') // sesuai nama di main.ts
 @Controller('employee')
 @UseGuards(JwtAuthGuard)
 export class EmployeeController {

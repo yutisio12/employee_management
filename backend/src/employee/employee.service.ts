@@ -36,7 +36,7 @@ export class EmployeeService {
       };
       
       const newEmployee = this.employeeRepository.create(encryptedData);
-      const savedEmployee = await this.employeeRepository.save(newEmployee);
+      await this.employeeRepository.save(newEmployee);
       const returnNewEmployee = {
         ...newEmployee,
         email: createEmployeeDto.email,

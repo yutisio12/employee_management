@@ -2,6 +2,7 @@ import { Controller, Post, Body, Res, HttpStatus, UseGuards, Get, Req, NotFoundE
 import type { Response, Request } from "express";
 import { AuthService } from "./auth.service";
 import { JwtAuthGuard } from "./jwt-auth.guard";
+import { LoginDto } from "./dto/login.dto";
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from "@nestjs/swagger";
 
 @ApiTags('Authentication')
@@ -13,7 +14,7 @@ export class AuthController{
   @ApiOperation({ summary: 'User login' })
   @ApiResponse({ status: 200, description: 'Login successful' })
   async login(
-    @Body() loginDto: { username: string, password: string },
+    @Body() loginDto: LoginDto,
     @Res() response: Response,
   ){
     const user = await this.authService.validateUser(loginDto.username, loginDto.password)
@@ -56,6 +57,12 @@ export class AuthController{
       }
     }
     return this.authService.register(registerDto);
+  }
+
+  @Post('validate')
+  @UseGuards(JwtAuthGuard)
+  async validate( @Req() req ){
+    console.log(req)
   }
 
   @Post('logout')
