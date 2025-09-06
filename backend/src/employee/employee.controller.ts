@@ -19,23 +19,26 @@ import {
 } from '@nestjs/common';
 import { CreateEmployeeDto } from './dto/create-employee.dto';
 import { UpdateEmployeeDto } from './dto/update-employee.dto';
+import { ResponseEmployeeDto } from './dto/response-employee.dto';
 import { DeleteEmployeeDto } from './dto/delete-employee.dto';
 import { EmployeeService } from './employee.service';
-import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from "@nestjs/swagger";
+import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiCookieAuth } from "@nestjs/swagger";
 import { FileInterceptor } from '@nestjs/platform-express';
 import { JwtAuthGuard } from 'src/auth/jwt-auth.guard';
 import { PaginationQueryDto } from 'src/pagination/pagination-query.dto';
 import type { Response } from 'express';
+import { plainToInstance } from 'class-transformer';
 
 @ApiTags('Employee')
 @ApiBearerAuth('access-token') // sesuai nama di main.ts
+@ApiCookieAuth('access-token')
 @Controller('employee')
 @UseGuards(JwtAuthGuard)
 export class EmployeeController {
   constructor(private readonly employeeService: EmployeeService) {}
 
-  @Post('create')
-  async create(@Body() createEmployeeDto: CreateEmployeeDto) {
+  @Post('insert')
+  async insert(@Body() createEmployeeDto: CreateEmployeeDto) {
     const checkEmail = await this.employeeService.findOneCustom({ email: createEmployeeDto.email });
     if(checkEmail){
       return {
@@ -46,10 +49,25 @@ export class EmployeeController {
     return this.employeeService.create(createEmployeeDto);
   }
 
+  @Post('insert_batch')
+  async insert_batch(@Body() createEmployeeDto: CreateEmployeeDto[]) {
+    return this.employeeService.insert_batch(createEmployeeDto)
+  }
+
   @Get('list')
   findAll(@Query() query: PaginationQueryDto) {
     return this.employeeService.findAll(query);
   }
+
+  @Get('list/:id')
+  async findById(@Param('id') id: string): Promise<ResponseEmployeeDto>  {
+    const employee = await this.employeeService.findOneCustom({id:id});
+
+    return plainToInstance(ResponseEmployeeDto, employee, {
+    excludeExtraneousValues: false,
+  });
+  }
+
 
   @Get('export/:department')
   async export(@Res() res: Response, @Param('department') department: string) {
@@ -79,6 +97,15 @@ export class EmployeeController {
     ) file: Express.Multer.File
   ){
     const upload = await this.employeeService.uploadProfilePicture(body.id, file) 
+    return upload
+  }
+
+  @Delete('delete/')
+  async deleteEmployee(
+    @Body() body: DeleteEmployeeDto,
+  ){
+    const deleteResult = await this.employeeService.deleteEmployee(body.ids, body)
+    return deleteResult
   }
 
   // @Get('list/:id')

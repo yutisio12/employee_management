@@ -27,6 +27,7 @@ async function bootstrap() {
     .setTitle('Employee App API')
     .setDescription('API Documentation using Swagger')
     .setVersion('0.0')
+    .addCookieAuth('token')
     .addBearerAuth({
       type: 'http',
       scheme: 'bearer',
@@ -37,7 +38,17 @@ async function bootstrap() {
   )
     .build() // FOR SWAGGER
   const documentAPI = SwaggerModule.createDocument(app, swagConfig)
-  SwaggerModule.setup('api/docs', app, documentAPI)
+  SwaggerModule.setup('api/docs', app, documentAPI, {
+    swaggerOptions: {
+      requestInterceptor: (req) => {
+        const match = document.cookie.match(new RegExp('(^| )token=([^;]+)'));
+        if (match) {
+          req.headers['Authorization'] = `Bearer ${match[2]}`;
+        }
+        return req;
+      },
+    },
+  })
 
   // it must be at the end
   await app.listen(process.env.PORT ?? 3000);

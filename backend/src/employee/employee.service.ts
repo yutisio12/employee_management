@@ -1,6 +1,6 @@
 import { Injectable, UnauthorizedException, Logger, BadRequestException, InternalServerErrorException, NotFoundException} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 import { Employee } from 'src/entities/employee.employee.entity';
 import { EncryptionService } from 'src/utils/encryption.service';
 import { SftpService } from 'src/utils/sftp.service';
@@ -50,6 +50,20 @@ export class EmployeeService {
     }
   }
 
+  async insert_batch(formData: CreateEmployeeDto[]): Promise<any>{
+    const emailList = formData.map(v => v.email)
+    const exist = await this.employeeRepository.find({
+      where: emailList.map(email => ({email}))
+    })
+
+    if(exist.length>0){
+      const isExist = exist.map(data => data.email)
+      throw new Error(`Email already exists: ${isExist.join(', ')}, please check again`)
+    }
+
+    return await this.employeeRepository.save(formData)
+  }
+
   async findAll(query: PaginationQueryDto) {
     const { page, limit, sort, search } = query;
     const where: any = {};
@@ -75,7 +89,11 @@ export class EmployeeService {
 
   async findOneCustom(whereParam: any) {
     const user = await this.employeeRepository.findOne({where: whereParam});
-    return user === null ? undefined : user;
+    if(!user){
+      throw new NotFoundException();
+    }
+    
+    return user;
   }
 
   async update(id: string, updateEmployeeDto: UpdateEmployeeDto): Promise<void> {
@@ -138,6 +156,7 @@ export class EmployeeService {
       await this.employeeRepository.update(id, {
         profilePicture: fileName
       })
+      return 'ok'
     } catch (error) {
       if (error instanceof NotFoundException) {
         throw error;
@@ -194,6 +213,30 @@ export class EmployeeService {
       return Buffer.from(await workbook.xlsx.writeBuffer())
     } catch (error) {
       throw new BadRequestException('Failed to export to Excel: ' + error.message);
+    }
+  }
+
+  async deleteEmployee(idData: string[], deleteEmployeeDto: DeleteEmployeeDto): Promise<any>{
+    try {
+      // const id = this.encryptionService.decrypt(idData)
+      // const delete_by = this.encryptionService.decrypt(deleteEmployeeDto.deleteBy)=
+      const delete_by = deleteEmployeeDto.deleteBy
+      const now = new Date();
+      const {
+        ids,
+        ...oldFormData
+      } = deleteEmployeeDto
+      const formData = {
+        ...oldFormData, 
+        isActive: false,
+        deleteBy: delete_by,
+        deleteDatetime: now
+      }
+      // return id
+      await this.employeeRepository.update({id: In(idData)}, formData)
+      return 'ok';
+    } catch (error){
+      throw new Error(error);
     }
   }
 
