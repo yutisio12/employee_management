@@ -70,7 +70,7 @@ export class AuthController{
   @ApiResponse({ status: 200, description: 'Logout successful' })
   async logout(@Res({passthrough: true}) response: Response){
     response.clearCookie('access_token')
-    return { message: 'Logout Successfully' }
+    return { message: 'You has been Log out' }
   }
 
   @Get('profile')
