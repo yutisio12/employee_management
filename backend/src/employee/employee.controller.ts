@@ -43,7 +43,7 @@ export class EmployeeController {
     if(checkEmail){
       return {
         statusCode: HttpStatus.CONFLICT,
-        message: 'Email/Username already exists, please use another'
+        message: 'Credential already exists, please use another'
       }
     }
     return this.employeeService.create(createEmployeeDto);
